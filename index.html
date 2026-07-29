@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAMHS Triage Call Script</title>
+<style>
+  :root{
+    --bg: #EDF1EF;
+    --card: #FFFFFF;
+    --ink: #1F2B29;
+    --ink-soft: #55635F;
+    --line: #D6DEDA;
+    --teal: #2F6F62;
+    --teal-dark: #234F45;
+    --teal-tint: #E3EEEA;
+    --amber: #C4881F;
+    --amber-tint: #FBF0DC;
+    --radius: 14px;
+  }
+  *{ box-sizing: border-box; }
+  html, body{
+    margin:0; padding:0; height:100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .heading-font{
+    font-family: ui-serif, Georgia, "Times New Roman", serif;
+  }
+  .mono{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 14px 20px;
+    background: var(--teal-dark);
+    color: #F3F6F4;
+  }
+  .topbar h1{
+    font-size: 15px; margin:0; letter-spacing: 0.04em; text-transform: uppercase;
+    font-weight: 600;
+  }
+  .topbar .subtitle{
+    font-size: 11px; opacity: 0.75; margin-top: 2px;
+  }
+  .topbar-actions{ display:flex; gap:8px; }
+  .chip-btn{
+    background: rgba(255,255,255,0.12);
+    color: #F3F6F4;
+    border: 1px solid rgba(255,255,255,0.25);
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor:pointer;
+  }
+  .chip-btn:hover{ background: rgba(255,255,255,0.22); }
+
+  .wrap{
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 28px 18px 120px;
+  }
+
+  .stage-label{
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 8px;
+  }
+
+  .card{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 26px 26px 22px;
+    box-shadow: 0 1px 2px rgba(20,40,35,0.04);
+    opacity: 0;
+    transform: translateY(6px);
+    animation: rise 0.22s ease forwards;
+  }
+  @keyframes rise{ to{ opacity:1; transform: translateY(0); } }
+
+  .card h2{
+    font-size: 21px;
+    margin: 0 0 14px;
+    line-height: 1.3;
+  }
+
+  .script p{
+    font-size: 15.5px;
+    line-height: 1.62;
+    margin: 0 0 12px;
+    color: var(--ink);
+  }
+  .script .aside{
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    font-style: italic;
+  }
+
+  .note{
+    margin-top: 14px;
+    background: var(--teal-tint);
+    border-left: 3px solid var(--teal);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13.5px;
+    color: var(--teal-dark);
+    line-height: 1.5;
+  }
+
+  .btn-stack{
+    margin-top: 22px;
+    display:flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .btn{
+    border-radius: 10px;
+    padding: 13px 16px;
+    font-size: 14.5px;
+    text-align: left;
+    cursor: pointer;
+    border: 1px solid transparent;
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .btn-primary{
+    background: var(--teal);
+    color: #fff;
+    font-weight: 600;
+  }
+  .btn-primary:hover{ background: var(--teal-dark); }
+  .btn-alt{
+    background: #fff;
+    border-color: var(--line);
+    color: var(--ink);
+  }
+  .btn-alt:hover{ border-color: var(--teal); color: var(--teal-dark); }
+  .btn .arrow{ opacity: 0.6; }
+
+  .back-row{
+    margin-top: 16px;
+  }
+  .back-link{
+    background:none; border:none; color: var(--ink-soft);
+    font-size: 12.5px; cursor:pointer; padding:4px 0;
+  }
+  .back-link:hover{ color: var(--teal-dark); text-decoration: underline; }
+
+  /* Floating interrupt button */
+  .fab{
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    background: var(--amber);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 15px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 6px 18px rgba(196,136,31,0.4);
+    cursor: pointer;
+    display:flex;
+    align-items:center;
+    gap: 8px;
+  }
+  .fab:hover{ filter: brightness(0.95); }
+
+  /* Overlay panel */
+  .overlay{
+    position: fixed;
+    inset: 0;
+    background: rgba(20,30,28,0.35);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 40;
+  }
+  .overlay.open{ display:flex; }
+  .panel{
+    background: #fff;
+    width: 100%;
+    max-width: 640px;
+    max-height: 78vh;
+    overflow-y: auto;
+    border-radius: 18px 18px 0 0;
+    padding: 22px 22px 30px;
+    animation: slideup 0.2s ease;
+  }
+  @keyframes slideup{ from{ transform: translateY(30px); opacity:0.6;} to{ transform: translateY(0); opacity:1; } }
+  .panel-header{
+    display:flex; justify-content: space-between; align-items:center;
+    margin-bottom: 6px;
+  }
+  .panel-header h3{ margin:0; font-size: 17px; }
+  .panel-close{
+    background:none; border:none; font-size: 20px; color: var(--ink-soft); cursor:pointer;
+    line-height:1; padding: 4px 6px;
+  }
+  .panel-lead{
+    font-size: 13px; color: var(--ink-soft); margin: 0 0 16px;
+    line-height: 1.5;
+  }
+  .phrase-primer{
+    background: var(--amber-tint);
+    border-left: 3px solid var(--amber);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+  .phrase-item{
+    padding: 11px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .phrase-item:last-child{ border-bottom:none; }
+  .phrase-item .tag{
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--amber);
+    font-weight: 700;
+    display:block;
+    margin-bottom: 3px;
+  }
+  .phrase-item .text{
+    font-size: 14.5px;
+    line-height: 1.5;
+  }
+
+  /* Voicemail modal reuses overlay/panel styling */
+
+  @media (max-width: 480px){
+    .wrap{ padding: 20px 14px 120px; }
+    .card{ padding: 20px 18px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>CAMHS Triage Call Script</h1>
+    <div class="subtitle">Front Door / Triage &nbsp;·&nbsp; Juanita Peters</div>
+  </div>
+  <div class="topbar-actions">
+    <button class="chip-btn" onclick="openVoicemail()">Voicemail script</button>
+    <button class="chip-btn" onclick="restart()">Restart</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="stage-label" id="stageLabel">Step 1</div>
+  <div class="card" id="card">
+    <!-- rendered by JS -->
+  </div>
+  <div class="back-row" id="backRow"></div>
+</div>
+
+<button class="fab" onclick="openInterrupt()">⏸ Interrupt phrases</button>
+
+<!-- Interrupt overlay -->
+<div class="overlay" id="interruptOverlay">
+  <div class="panel">
+    <div class="panel-header">
+      <h3>Interruption phrases</h3>
+      <button class="panel-close" onclick="closeInterrupt()">✕</button>
+    </div>
+    <p class="panel-lead">Use any time during the call. Say the phrase, pause, then immediately ask your next question.</p>
+    <div class="phrase-primer">
+      <strong>Quick pause:</strong> "Can I stop you there?" — wait — then continue: "What I need to know is…"<br>
+      Or: "I'm just going to pause you for a moment." — then ask your next question immediately.
+    </div>
+    <div id="phraseList"></div>
+  </div>
+</div>
+
+<!-- Voicemail overlay -->
+<div class="overlay" id="voicemailOverlay">
+  <div class="panel">
+    <div class="panel-header">
+      <h3>Voicemail script</h3>
+      <button class="panel-close" onclick="closeVoicemail()">✕</button>
+    </div>
+    <div class="script">
+      <p>"Hello, this is Juanita Peters from the Front Door Team at CAMHS Bedfordshire.</p>
+      <p>I was hoping to speak with [Parent Name] regarding a referral we have received.</p>
+      <p>If you would like to contact us before my next call attempt, please contact CAMHS reception on <strong>01525 638 613</strong> and ask for a message to be passed to the Front Door Team requesting a call back.</p>
+      <p>Otherwise, I will make one further attempt to contact you. Again, that number for CAMHS reception is <strong>01525 638 613</strong>.</p>
+      <p>Thank you."</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const nodes = {
+  start: {
+    stage: "Step 1 · Who's on the line",
+    title: "Who answered the call?",
+    body: [],
+    choices: [
+      { label: "Parent answered", to: "parentConfirm" },
+      { label: "Someone else answered", to: "otherAnswered", alt:true },
+      { label: "Child answered", to: "childAnswered", alt:true }
+    ]
+  },
+  parentConfirm: {
+    stage: "Step 2 · Confirm identity",
+    title: "Confirming parent identity",
+    body: [
+      { t:"“Hello, can I speak to [Parent Name], please?”" },
+      { t:"(Parent: “Speaking.”)", aside:true },
+      { t:"“Thank you. Before I continue, can I just confirm that you are the parent/carer of [Child's Name]?”" },
+      { t:"(Parent confirms.)", aside:true },
+      { t:"“Thank you. My name is Juanita Peters and I work within the Front Door/Triage Team at CAMHS in Bedfordshire. I'm calling because our team has received a referral regarding concerns about [Child's Name]'s mental health and wellbeing. I was hoping to either complete a brief triage call with you today if you have time, or arrange a suitable time within the next week to speak.”" }
+    ],
+    choices: [
+      { label: "They can talk now → start the triage call", to: "conductOpening" },
+      { label: "They can't talk today", to: "cantTalkToday", alt:true }
+    ]
+  },
+  otherAnswered: {
+    stage: "Alt · Someone else answered",
+    title: "Someone else picked up",
+    note: "Do not disclose CAMHS at this point.",
+    body: [
+      { t:"“Hello, can I speak to [Parent Name], please?”" },
+      { t:"(Other person: “Who's calling?”)", aside:true },
+      { t:"“My name is Juanita. I'm calling regarding a healthcare matter and would like to speak directly with them.”" }
+    ],
+    choices: [
+      { label: "Parent comes to the phone", to: "parentConfirm" },
+      { label: "Parent isn't available", to: "parentNotAvailable", alt:true }
+    ]
+  },
+  parentNotAvailable: {
+    stage: "Alt · Parent not available",
+    title: "Leaving a message",
+    body: [
+      { t:"“No problem. Could you let them know Juanita called regarding a healthcare matter and ask them to contact us back on [number]?”" },
+      { t:"— or —", aside:true },
+      { t:"“Could you let me know when they may be available so I can try calling again?”" }
+    ],
+    choices: [
+      { label: "Back to start", to: "start" }
+    ]
+  },
+  childAnswered: {
+    stage: "Alt · Child answered",
+    title: "Child picked up",
+    note: "Protects confidentiality — don't disclose referral information to the child.",
+    body: [
+      { t:"“Hello, is [Parent Name] available please?”" },
+      { t:"(Child: “Who's calling?”)", aside:true },
+      { t:"“My name is Juanita. I'm calling regarding a healthcare matter and need to speak with your parent/carer.”" }
+    ],
+    choices: [
+      { label: "Parent comes to the phone", to: "parentConfirm" },
+      { label: "Child asks what it's about", to: "childAsks", alt:true }
+    ]
+  },
+  childAsks: {
+    stage: "Alt · Child asks for details",
+    title: "If the child asks what it's about",
+    body: [
+      { t:"“It's something I need to discuss directly with your parent/carer first. Is there a good time I can speak with them?”" }
+    ],
+    choices: [
+      { label: "Back to start", to: "start" }
+    ]
+  },
+  cantTalkToday: {
+    stage: "Step 3 · Can't talk right now",
+    title: "Parent available but can't talk today",
+    body: [
+      { t:"“Thank you for speaking with me. My name is Juanita Peters and I work within the Front Door/Triage Team at CAMHS in Bedfordshire. We've received a referral regarding concerns about [Child's Name]'s mental health and wellbeing.”" },
+      { t:"“As part of our process, we'd like to complete a brief triage telephone call with you. The call usually takes around 20–30 minutes and helps us understand the concerns that have led to the referral.”" },
+      { t:"“Are there any days within the next week that would work well for you for a telephone call?”" }
+    ],
+    choices: [
+      { label: "Time agreed → set expectations", to: "setExpectations" },
+      { label: "They ask to delay several weeks", to: "requestDelay", alt:true }
+    ]
+  },
+  requestDelay: {
+    stage: "Alt · Requesting a delay",
+    title: "If parent requests several weeks' delay",
+    body: [
+      { t:"“I appreciate that you're trying to find a suitable time. Our Front Door process aims to complete triage calls as promptly as possible, usually within approximately one week of contact where we can. This helps us ensure concerns are reviewed in a timely way and that any appropriate support can be identified. Let's see if we can find a day and time within the next week that works best for you.”" }
+    ],
+    choices: [
+      { label: "Time agreed → set expectations", to: "setExpectations" }
+    ]
+  },
+  setExpectations: {
+    stage: "Step 4 · Set expectations for the booked call",
+    title: "Setting expectations for the scheduled triage call",
+    body: [
+      { t:"“Before we finish, I just wanted to explain what the triage call involves. The purpose of the call is for us to better understand the concerns that have been raised and how these are affecting your child.”" },
+      { t:"“During the call we'll explore: current mental health concerns; home and family life; school, education and attendance; neurodevelopmental factors where relevant; any risk, safety or safeguarding concerns; previous and current support services.”" },
+      { t:"“The call is an assessment and information-gathering appointment rather than CAMHS treatment. Following the discussion, this could include support from CAMHS, another NHS service, education-based support, voluntary sector services, or other community organisations depending on what is identified.”" }
+    ],
+    choices: [
+      { label: "Call booked — done", to: "doneScheduling" }
+    ]
+  },
+  doneScheduling: {
+    stage: "Done · Call booked",
+    title: "Call booked for later",
+    body: [
+      { t:"You've agreed a date and set expectations. End the call warmly. When the scheduled call comes round, come back here and use the “Start the triage call” path.", aside:true }
+    ],
+    choices: [
+      { label: "Back to start", to: "start" }
+    ]
+  },
+  conductOpening: {
+    stage: "Step 5 · Opening the triage call",
+    title: "Opening script",
+    body: [
+      { t:"“Thank you for taking the time to speak with me today. My name is Juanita Peters and I work in the Front Door/Triage Team at CAMHS Bedfordshire. Before we begin, can I just confirm that I am speaking to [Parent Name], parent/carer of [Child Name]?”" }
+    ],
+    choices: [
+      { label: "Now explain the purpose of the call", to: "conductPurpose" }
+    ]
+  },
+  conductPurpose: {
+    stage: "Step 6 · Purpose of the call",
+    title: "Purpose of today's call",
+    body: [
+      { t:"“The purpose of today's call is to gather information about the concerns that led to the referral and understand your child's needs more fully. We'll talk about their mental health, day-to-day functioning, home life, school, any relevant developmental factors, and any risks or safety concerns.”" }
+    ],
+    choices: [
+      { label: "Now manage expectations", to: "conductManage" }
+    ]
+  },
+  conductManage: {
+    stage: "Step 7 · Managing expectations",
+    title: "Managing expectations",
+    body: [
+      { t:"“I also want to explain that this isn't a therapeutic appointment and isn't a decision-making appointment regarding treatment. CAMHS provides specialist mental health services, but not every mental health concern is best supported by CAMHS. There are many excellent services available both within and outside the NHS that provide support for children, young people and families.”" },
+      { t:"“Because our call is only around 20–45 minutes and I have several areas I need to cover, I may interrupt or redirect the conversation at times. Please don't take that as me not being interested; it's simply to make sure I gather all the information needed to understand how best we can help.”" }
+    ],
+    note: "Possible outcomes if it comes up: CAMHS, early intervention, counselling, school-based support, voluntary/community organisations, bereavement or trauma specialist services, parenting/family support. There's no guarantee CAMHS will be the right fit — the aim is to find what's most helpful.",
+    choices: [
+      { label: "Start the assessment", to: "conductStart" }
+    ]
+  },
+  conductStart: {
+    stage: "Step 8 · Starting the assessment",
+    title: "Starting the assessment",
+    body: [
+      { t:"“Does that all make sense before we begin?”" },
+      { t:"“To start with, could you tell me what your main worries are about [Child's Name] at the moment?”" }
+    ],
+    note: "Use the amber Interrupt phrases button below any time you need to redirect from here on.",
+    choices: [
+      { label: "Ready to close the call", to: "conductEnd" }
+    ]
+  },
+  conductEnd: {
+    stage: "Step 9 · Ending the call",
+    title: "Ending the triage call",
+    body: [
+      { t:"“Thank you for sharing all of that information today. Based on what we've discussed, I'll now review the information gathered and discuss it within our triage process.”" },
+      { t:"“We will consider what support is most appropriate and the next steps for your child. Once this has been completed, the outcome and recommendations will be communicated to you.”" },
+      { t:"“Do you have any questions before we finish today? Thank you for your time and for speaking with me.”" }
+    ],
+    choices: [
+      { label: "Back to start", to: "start" }
+    ]
+  }
+};
+
+const phrases = [
+  { tag:"Acknowledge, then redirect", text:"“That's really helpful, thank you. Let me just bring us back to my question about…”" },
+  { tag:"Gentle but firm", text:"“I'm going to pause you there for a moment because I want to make sure I gather the information I need.”" },
+  { tag:"Time-boundary reminder", text:"“I want to make sure we use our time well today, so can I bring us back to…”" },
+  { tag:"Refocus on the child", text:"“I can hear that's been difficult. Thinking specifically about [child's name], can you tell me…”" },
+  { tag:"Background → current concerns", text:"“That's useful context. What I'd like to understand now is what's happening currently.”" },
+  { tag:"They're answering a different question", text:"“I'm just conscious we may be moving away from my question. What I wanted to ask was…”" },
+  { tag:"Triage-focused reminder", text:"“For today's triage, I need to focus on gathering some key information, so let me ask…”" },
+  { tag:"Summarise and close the topic", text:"“Okay, so what I'm hearing is X, Y and Z. That's really helpful. I'd like to move on to…”" },
+  { tag:"They keep talking after a redirect", text:"“I'm going to stop you there because there's a few important areas I still need to cover.”" },
+  { tag:"Explicit but caring", text:"“I can hear there's a lot more you could tell me about this, and it sounds important. For today's call I need to move us on to…”" },
+  { tag:"When they're repeating themselves", text:"“I think I've got a good understanding of that part now. Can I ask about…”" },
+  { tag:"Excessive history", text:"“That's helpful background information. To help me assess things today, what I'd really like to know is…”" },
+  { tag:"Highly detailed storytellers", text:"“I'm just going to zoom out for a moment. What would you say is the main concern you're hoping we can help with?”" },
+  { tag:"Firmest version", text:"“I'm going to interrupt for a moment because I need to ask some specific questions to complete the assessment.”" },
+  { tag:"End-of-section transition", text:"“Thank you, that's given me the information I need on that area. Let's move on to…”" }
+];
+
+let historyStack = [];
+let current = "start";
+
+function render(nodeId, pushHistory=true){
+  if(pushHistory && current !== nodeId){ historyStack.push(current); }
+  current = nodeId;
+  const n = nodes[nodeId];
+
+  document.getElementById("stageLabel").textContent = n.stage;
+
+  const card = document.getElementById("card");
+  card.classList.remove("card");
+  void card.offsetWidth;
+  card.classList.add("card");
+
+  let html = `<h2 class="heading-font">${n.title}</h2>`;
+  if(n.body && n.body.length){
+    html += `<div class="script">`;
+    n.body.forEach(line => {
+      html += `<p class="${line.aside ? 'aside' : ''}">${line.t}</p>`;
+    });
+    html += `</div>`;
+  }
+  if(n.note){
+    html += `<div class="note">${n.note}</div>`;
+  }
+  html += `<div class="btn-stack">`;
+  n.choices.forEach(c => {
+    html += `<button class="btn ${c.alt ? 'btn-alt' : 'btn-primary'}" onclick="render('${c.to}')">
+      <span>${c.label}</span><span class="arrow">→</span>
+    </button>`;
+  });
+  html += `</div>`;
+
+  card.innerHTML = html;
+
+  const backRow = document.getElementById("backRow");
+  backRow.innerHTML = historyStack.length
+    ? `<button class="back-link" onclick="goBack()">← back to previous step</button>`
+    : "";
+}
+
+function goBack(){
+  const prev = historyStack.pop();
+  render(prev, false);
+}
+
+function restart(){
+  historyStack = [];
+  render("start", false);
+}
+
+function openInterrupt(){
+  const list = document.getElementById("phraseList");
+  list.innerHTML = phrases.map(p => `
+    <div class="phrase-item">
+      <span class="tag">${p.tag}</span>
+      <span class="text">${p.text}</span>
+    </div>
+  `).join("");
+  document.getElementById("interruptOverlay").classList.add("open");
+}
+function closeInterrupt(){
+  document.getElementById("interruptOverlay").classList.remove("open");
+}
+
+function openVoicemail(){
+  document.getElementById("voicemailOverlay").classList.add("open");
+}
+function closeVoicemail(){
+  document.getElementById("voicemailOverlay").classList.remove("open");
+}
+
+// close overlay on backdrop click
+document.getElementById("interruptOverlay").addEventListener("click", (e)=>{
+  if(e.target.id === "interruptOverlay") closeInterrupt();
+});
+document.getElementById("voicemailOverlay").addEventListener("click", (e)=>{
+  if(e.target.id === "voicemailOverlay") closeVoicemail();
+});
+
+render("start", false);
+</script>
+
+</body>
+</html>
